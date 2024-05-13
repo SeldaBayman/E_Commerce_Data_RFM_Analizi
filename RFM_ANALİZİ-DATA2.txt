@@ -1,0 +1,43 @@
+
+
+WITH recency AS(	
+WITH recency_ AS(
+SELECT customer_id,
+       max(invoicedate)::date max_date
+	   from rfm  
+	   group by 1)     
+SELECT customer_id,
+       max_date,
+	   '2011-12-09'::date-max_date recency 
+	   from recency_),
+frequency as (
+SELECT customer_id,
+	   COUNT(DISTINCT invoiceno)::integer frequency 
+	   from rfm 
+	   group by 1),
+
+monetary AS(
+SELECT customer_id,
+    SUM(quantity*unitprice) monetary
+	from rfm 
+	group by 1),
+
+scores AS(
+SELECT r.customer_id,
+       max_date,
+	   recency,
+	   NTILE(5) OVER (order by recency DESC) recency_score,
+	   frequency,
+	   CASE WHEN frequency BETWEEN 1 AND 4 THEN frequency ELSE 5 END AS frequency_score, 
+	   monetary, 
+	   NTILE(5) OVER (order by monetary DESC) monetary_score
+FROM recency as r 
+join frequency f on f.customer_id=r.customer_id
+join monetary m on m.customer_id=r.customer_id
+)
+SELECT customer_id,
+       recency_score::varchar ||'-' || frequency_score::varchar ||'-' ||  monetary_score::varchar rfm_score
+FROM scores
+;
+	
+
